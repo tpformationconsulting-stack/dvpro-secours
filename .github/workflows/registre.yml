@@ -1,12 +1,14 @@
 # DV Pro : chaque jour, copie de secours du registre des copropriétés, publiée sur GitHub Pages.
 # Gratuit pour un dépôt public. Si la construction échoue, rien n'est publié : la copie de la veille reste en ligne.
+# 435r (04/11/2026) : outils GitHub à jour (Node 24), et une petite trace mensuelle pour que GitHub
+# n'arrête pas la tâche après 60 jours sans activité sur le dépôt.
 name: Copie du registre
 on:
   schedule:
     - cron: '35 9 * * *'   # 9 h 35 UTC, après la mise en ligne du fichier quotidien (vers 7 h UTC)
   workflow_dispatch: {}
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 concurrency:
@@ -19,14 +21,30 @@ jobs:
     environment:
       name: github-pages
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       - name: Construire la copie
         run: python3 construire_registre.py site
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: site
-      - uses: actions/deploy-pages@v4
+      - uses: actions/deploy-pages@v5
+      - name: Garder la tâche active (règle des 60 jours de GitHub)
+        if: github.event_name == 'schedule'
+        continue-on-error: true
+        run: |
+          derniere=$(git log -1 --format=%ct)
+          jours=$(( ( $(date +%s) - derniere ) / 86400 ))
+          if [ "$jours" -ge 30 ]; then
+            date -u +%Y-%m-%d > derniere_activite.txt
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add derniere_activite.txt
+            git commit -m "Activité mensuelle : la copie quotidienne reste active"
+            git push
+          else
+            echo "Dernière activité il y a $jours jours : rien à faire."
+          fi
