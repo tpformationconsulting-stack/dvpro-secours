@@ -1,7 +1,9 @@
-# DV Pro : chaque jour, copie de secours du registre des copropriétés, publiée sur GitHub Pages.
-# Gratuit pour un dépôt public. Si la construction échoue, rien n'est publié : la copie de la veille reste en ligne.
+# DV Pro : chaque jour, copie de secours du registre des copropriétés et de la liste des communes, publiée sur GitHub Pages.
+# Gratuit pour un dépôt public. Si la construction du registre échoue, rien n'est publié : la copie de la veille reste en ligne.
 # 435r (04/11/2026) : outils GitHub à jour (Node 24), et une petite trace mensuelle pour que GitHub
 # n'arrête pas la tâche après 60 jours sans activité sur le dépôt.
+# 444r (12/11/2026) : la liste des communes (geo/communes.json) est publiée avec le registre. Si le service des communes
+# ne répond pas ce jour-là, la liste déjà en ligne est reprise telle quelle, avec sa date.
 name: Copie du registre
 on:
   schedule:
@@ -27,6 +29,10 @@ jobs:
           python-version: '3.12'
       - name: Construire la copie
         run: python3 construire_registre.py site
+      - name: Ajouter la liste des communes
+        continue-on-error: true   # un échec ici n'empêche jamais la publication du registre
+        timeout-minutes: 12       # au pire 12 minutes : le registre est publié de toute façon
+        run: python3 construire_communes.py site "https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}"
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:
